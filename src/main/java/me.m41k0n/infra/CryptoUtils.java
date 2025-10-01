@@ -28,7 +28,7 @@ public class CryptoUtils {
             PrivateKey privateKey = kf.generatePrivate(new PKCS8EncodedKeySpec(privateKeyEncoded));
             Signature sig = Signature.getInstance("Ed25519");
             sig.initSign(privateKey);
-            sig.update(data.getBytes());
+            sig.update(data.getBytes(StandardCharsets.UTF_8));
             byte[] signatureBytes = sig.sign();
             return Base64.getEncoder().encodeToString(signatureBytes);
         } catch (Exception e) {
