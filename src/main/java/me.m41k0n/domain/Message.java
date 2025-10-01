@@ -1,5 +1,7 @@
 package me.m41k0n.domain;
 
+import com.google.gson.Gson;
+
 public class Message {
 
     private final String type;
@@ -16,11 +18,25 @@ public class Message {
         this.signature = signature;
     }
 
-    public String getType() { return type; }
-    public String getFrom() { return from; }
-    public String getTo() { return to; }
-    public String getPayload() { return payload; }
-    public String getSignature() { return signature; }
+    public String getType() {
+        return type;
+    }
+
+    public String getFrom() {
+        return from;
+    }
+
+    public String getTo() {
+        return to;
+    }
+
+    public String getPayload() {
+        return payload;
+    }
+
+    public String getSignature() {
+        return signature;
+    }
 
     public String toJson() {
         return String.format(
@@ -30,18 +46,7 @@ public class Message {
     }
 
     public static Message fromJson(String json) {
-        String[] parts = json.replace("{", "").replace("}", "").replace("\"", "").split(",");
-        String type = "", from = "", to = "", payload = "", signature = "";
-        for (String p : parts) {
-            String[] kv = p.split(":");
-            switch (kv[0]) {
-                case "type": type = kv[1]; break;
-                case "from": from = kv[1]; break;
-                case "to": to = kv[1]; break;
-                case "payload": payload = kv[1]; break;
-                case "signature": signature = kv[1]; break;
-            }
-        }
-        return new Message(type, from, to, payload, signature);
+        Gson gson = new Gson();
+        return gson.fromJson(json, Message.class);
     }
 }
