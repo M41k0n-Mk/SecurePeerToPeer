@@ -9,6 +9,7 @@ public class Message {
     private final String to;
     private final String payload;
     private final String signature;
+    private final long timestamp;
 
     public Message(String type, String from, String to, String payload, String signature) {
         this.type = type;
@@ -16,6 +17,7 @@ public class Message {
         this.to = to;
         this.payload = payload;
         this.signature = signature;
+        this.timestamp = System.currentTimeMillis();
     }
 
     public String getType() {
@@ -38,10 +40,14 @@ public class Message {
         return signature;
     }
 
+    public long getTimestamp() {
+        return timestamp;
+    }
+
     public String toJson() {
         return String.format(
-                "{\"type\":\"%s\",\"from\":\"%s\",\"to\":\"%s\",\"payload\":\"%s\",\"signature\":\"%s\"}",
-                type, from, to, payload, signature
+                "{\"type\":\"%s\",\"from\":\"%s\",\"to\":\"%s\",\"payload\":\"%s\",\"signature\":\"%s\",\"timestamp\":%d}",
+                type, from, to, payload, signature, timestamp
         );
     }
 
