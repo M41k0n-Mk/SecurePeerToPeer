@@ -1,0 +1,4 @@
+me/m41k0n/PeerToPeerApp.class
+me/m41k0n/domain/PeerIdentity.class
+me/m41k0n/infra/CryptoUtils.class
+me/m41k0n/domain/Message.class

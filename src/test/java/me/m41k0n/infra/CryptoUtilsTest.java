@@ -1,7 +1,10 @@
 package me.m41k0n.infra;
 
+import me.m41k0n.domain.Message;
 import me.m41k0n.domain.PeerIdentity;
 import org.junit.jupiter.api.Test;
+
+import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -18,5 +21,36 @@ public class CryptoUtilsTest {
 
         boolean isInvalid = CryptoUtils.verify(identity.getPublicKey(), "outra mensagem", signature);
         assertFalse(isInvalid);
+    }
+
+    @Test
+    void testMessageWithTimestamp() {
+        PeerIdentity identity = CryptoUtils.generateEd25519KeyPair();
+        String payload = "test message";
+        String signature = CryptoUtils.sign(identity.getPrivateKey(), payload);
+        Message msg = new Message("chat", identity.getPublicKeyBase64(), "recipient", payload, signature);
+
+        assertNotNull(msg.getTimestamp());
+        assertTrue(msg.getTimestamp() > 0);
+        assertEquals("chat", msg.getType());
+        assertEquals(payload, msg.getPayload());
+
+        // Test JSON serialization
+        String json = msg.toJson();
+        assertTrue(json.contains("\"timestamp\":"));
+
+        // Test deserialization
+        Message deserialized = Message.fromJson(json);
+        assertEquals(msg.getType(), deserialized.getType());
+        assertEquals(msg.getPayload(), deserialized.getPayload());
+        assertEquals(msg.getTimestamp(), deserialized.getTimestamp());
+
+        // Test signature verification
+        boolean verified = CryptoUtils.verify(
+                Base64.getDecoder().decode(deserialized.getFrom()),
+                deserialized.getPayload(),
+                deserialized.getSignature()
+        );
+        assertTrue(verified);
     }
 }

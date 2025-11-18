@@ -1,0 +1,4 @@
+/workspaces/SecurePeerToPeer/src/main/java/me.m41k0n/domain/Message.java
+/workspaces/SecurePeerToPeer/src/main/java/me.m41k0n/infra/CryptoUtils.java
+/workspaces/SecurePeerToPeer/src/main/java/me.m41k0n/domain/PeerIdentity.java
+/workspaces/SecurePeerToPeer/src/main/java/me.m41k0n/PeerToPeerApp.java

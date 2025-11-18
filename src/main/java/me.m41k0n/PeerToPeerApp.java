@@ -32,7 +32,7 @@ public class PeerToPeerApp {
             int port = Integer.parseInt(scanner.nextLine().trim());
             System.out.print("Recipient's public key: ");
             String toPub = scanner.nextLine().trim();
-            startClient(ip, port, myIdentity, toPub);
+            startClient(ip, port, myIdentity, toPub, scanner);
         } else {
             System.out.println("Invalid option.");
         }
@@ -78,7 +78,7 @@ public class PeerToPeerApp {
         }
     }
 
-    public static void startClient(String ip, int port, PeerIdentity myIdentity, String toPub) {
+    public static void startClient(String ip, int port, PeerIdentity myIdentity, String toPub, Scanner scanner) {
         try (Socket socket = new Socket(ip, port);
              BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
              BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()))) {
