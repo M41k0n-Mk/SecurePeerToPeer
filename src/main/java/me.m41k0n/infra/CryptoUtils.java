@@ -7,8 +7,14 @@ import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import java.security.Security;
 
 public class CryptoUtils {
+
+    static {
+        Security.addProvider(new BouncyCastleProvider());
+    }
 
     public static PeerIdentity generateEd25519KeyPair() {
         try {
@@ -18,7 +24,16 @@ public class CryptoUtils {
             byte[] priv = kp.getPrivate().getEncoded();
             return new PeerIdentity(pub, priv);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            // Fallback to BouncyCastle
+            try {
+                KeyPairGenerator kpg = KeyPairGenerator.getInstance("Ed25519", "BC");
+                KeyPair kp = kpg.generateKeyPair();
+                byte[] pub = kp.getPublic().getEncoded();
+                byte[] priv = kp.getPrivate().getEncoded();
+                return new PeerIdentity(pub, priv);
+            } catch (Exception ex) {
+                throw new RuntimeException("Ed25519 not available", ex);
+            }
         }
     }
 
@@ -32,7 +47,18 @@ public class CryptoUtils {
             byte[] signatureBytes = sig.sign();
             return Base64.getEncoder().encodeToString(signatureBytes);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            // Fallback to BouncyCastle
+            try {
+                KeyFactory kf = KeyFactory.getInstance("Ed25519", "BC");
+                PrivateKey privateKey = kf.generatePrivate(new PKCS8EncodedKeySpec(privateKeyEncoded));
+                Signature sig = Signature.getInstance("Ed25519", "BC");
+                sig.initSign(privateKey);
+                sig.update(data.getBytes(StandardCharsets.UTF_8));
+                byte[] signatureBytes = sig.sign();
+                return Base64.getEncoder().encodeToString(signatureBytes);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
         }
     }
 
@@ -46,7 +72,18 @@ public class CryptoUtils {
             byte[] signatureBytes = Base64.getDecoder().decode(signatureBase64);
             return sig.verify(signatureBytes);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            // Fallback to BouncyCastle
+            try {
+                KeyFactory kf = KeyFactory.getInstance("Ed25519", "BC");
+                PublicKey publicKey = kf.generatePublic(new X509EncodedKeySpec(publicKeyEncoded));
+                Signature sig = Signature.getInstance("Ed25519", "BC");
+                sig.initVerify(publicKey);
+                sig.update(data.getBytes(StandardCharsets.UTF_8));
+                byte[] signatureBytes = Base64.getDecoder().decode(signatureBase64);
+                return sig.verify(signatureBytes);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
         }
     }
 }

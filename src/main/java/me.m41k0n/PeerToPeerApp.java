@@ -60,13 +60,16 @@ public class PeerToPeerApp {
                             msg.getSignature()
                     );
 
-                    if (verified && msg.getPayload().equalsIgnoreCase("Hi!")) {
+                    if (verified && msg.getType().equals("hello") && msg.getPayload().equalsIgnoreCase("Hi!")) {
                         String responsePayload = "Hi, I am here!";
                         String responseSignature = CryptoUtils.sign(myIdentity.getPrivateKey(), responsePayload);
                         Message response = new Message("hello", myIdentity.getPublicKeyBase64(), msg.getFrom(), responsePayload, responseSignature);
                         writer.write(response.toJson() + "\n");
                         writer.flush();
                         System.out.println("Responded: " + response.toJson());
+
+                        // Enter chat loop
+                        chatLoop(clientSocket, myIdentity, msg.getFrom());
                     } else {
                         writer.write("Invalid message or incorrect signature\n");
                         writer.flush();
@@ -105,9 +108,83 @@ public class PeerToPeerApp {
                         response.getSignature()
                 );
                 System.out.println("Is the response signature valid? " + verified);
+
+                if (verified && response.getType().equals("hello")) {
+                    // Enter chat loop
+                    chatLoop(socket, myIdentity, toPub, scanner);
+                }
             }
         } catch (IOException e) {
             System.err.println("Client error: " + e.getMessage());
+        }
+    }
+
+    private static void chatLoop(Socket socket, PeerIdentity myIdentity, String toPub, Scanner scanner) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()))) {
+
+            // Thread for receiving messages
+            Thread receiver = new Thread(() -> {
+                try {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        Message msg = Message.fromJson(line);
+                        boolean verified = CryptoUtils.verify(
+                                Base64.getDecoder().decode(msg.getFrom()),
+                                msg.getPayload(),
+                                msg.getSignature()
+                        );
+                        if (verified) {
+                            System.out.println("[" + msg.getTimestamp() + "] " + msg.getFrom() + ": " + msg.getPayload());
+                        } else {
+                            System.out.println("Invalid signature from " + msg.getFrom());
+                        }
+                    }
+                } catch (IOException e) {
+                    System.err.println("Receive error: " + e.getMessage());
+                }
+            });
+            receiver.start();
+
+            // Send messages
+            while (true) {
+                System.out.print("You: ");
+                String input = scanner.nextLine();
+                if ("exit".equalsIgnoreCase(input)) break;
+                String signature = CryptoUtils.sign(myIdentity.getPrivateKey(), input);
+                Message chatMsg = new Message("chat", myIdentity.getPublicKeyBase64(), toPub, input, signature);
+                writer.write(chatMsg.toJson() + "\n");
+                writer.flush();
+            }
+        } catch (IOException e) {
+            System.err.println("Chat error: " + e.getMessage());
+        }
+    }
+
+    private static void chatLoop(Socket socket, PeerIdentity myIdentity, String fromPub) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()))) {
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                Message msg = Message.fromJson(line);
+                boolean verified = CryptoUtils.verify(
+                        Base64.getDecoder().decode(msg.getFrom()),
+                        msg.getPayload(),
+                        msg.getSignature()
+                );
+                if (verified && msg.getType().equals("chat")) {
+                    System.out.println("[" + msg.getTimestamp() + "] " + msg.getFrom() + ": " + msg.getPayload());
+                    // Echo back
+                    String echo = "Echo: " + msg.getPayload();
+                    String signature = CryptoUtils.sign(myIdentity.getPrivateKey(), echo);
+                    Message response = new Message("chat", myIdentity.getPublicKeyBase64(), fromPub, echo, signature);
+                    writer.write(response.toJson() + "\n");
+                    writer.flush();
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Chat error: " + e.getMessage());
         }
     }
 }
