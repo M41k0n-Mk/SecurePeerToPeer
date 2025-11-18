@@ -1,1 +1,2 @@
 /workspaces/SecurePeerToPeer/src/test/java/me/m41k0n/infra/CryptoUtilsTest.java
+/workspaces/SecurePeerToPeer/src/test/java/me/m41k0n/integration/PeerToPeerIntegrationTest.java
