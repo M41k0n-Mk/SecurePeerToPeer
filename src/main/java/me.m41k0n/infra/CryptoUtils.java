@@ -39,6 +39,12 @@ public class CryptoUtils {
 
     public static String sign(byte[] privateKeyEncoded, String data) {
         try {
+            if (privateKeyEncoded == null) {
+                throw new IllegalArgumentException("privateKeyEncoded não pode ser null");
+            }
+            if (data == null) {
+                throw new IllegalArgumentException("data não pode ser null");
+            }
             KeyFactory kf = KeyFactory.getInstance("Ed25519");
             PrivateKey privateKey = kf.generatePrivate(new PKCS8EncodedKeySpec(privateKeyEncoded));
             Signature sig = Signature.getInstance("Ed25519");
@@ -53,23 +59,33 @@ public class CryptoUtils {
                 PrivateKey privateKey = kf.generatePrivate(new PKCS8EncodedKeySpec(privateKeyEncoded));
                 Signature sig = Signature.getInstance("Ed25519", "BC");
                 sig.initSign(privateKey);
+                assert data != null;
                 sig.update(data.getBytes(StandardCharsets.UTF_8));
                 byte[] signatureBytes = sig.sign();
                 return Base64.getEncoder().encodeToString(signatureBytes);
             } catch (Exception ex) {
-                throw new RuntimeException(ex);
+                // chaves inválidas ou formato incorreto devem ser tratadas como entrada inválida
+                throw new IllegalArgumentException("chave privada inválida para Ed25519", ex);
             }
         }
     }
 
     public static boolean verify(byte[] publicKeyEncoded, String data, String signatureBase64) {
+        if (publicKeyEncoded == null || publicKeyEncoded.length == 0) return false;
+        if (data == null) return false;
+        if (signatureBase64 == null || signatureBase64.isEmpty()) return false;
         try {
             KeyFactory kf = KeyFactory.getInstance("Ed25519");
             PublicKey publicKey = kf.generatePublic(new X509EncodedKeySpec(publicKeyEncoded));
             Signature sig = Signature.getInstance("Ed25519");
             sig.initVerify(publicKey);
             sig.update(data.getBytes(StandardCharsets.UTF_8));
-            byte[] signatureBytes = Base64.getDecoder().decode(signatureBase64);
+            byte[] signatureBytes;
+            try {
+                signatureBytes = Base64.getDecoder().decode(signatureBase64);
+            } catch (IllegalArgumentException badB64) {
+                return false;
+            }
             return sig.verify(signatureBytes);
         } catch (Exception e) {
             // Fallback to BouncyCastle
@@ -79,10 +95,15 @@ public class CryptoUtils {
                 Signature sig = Signature.getInstance("Ed25519", "BC");
                 sig.initVerify(publicKey);
                 sig.update(data.getBytes(StandardCharsets.UTF_8));
-                byte[] signatureBytes = Base64.getDecoder().decode(signatureBase64);
+                byte[] signatureBytes;
+                try {
+                    signatureBytes = Base64.getDecoder().decode(signatureBase64);
+                } catch (IllegalArgumentException badB64) {
+                    return false;
+                }
                 return sig.verify(signatureBytes);
             } catch (Exception ex) {
-                throw new RuntimeException(ex);
+                return false;
             }
         }
     }

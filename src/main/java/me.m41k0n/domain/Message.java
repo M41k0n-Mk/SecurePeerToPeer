@@ -44,11 +44,14 @@ public class Message {
         return timestamp;
     }
 
+    /**
+     * Serializa usando Gson para evitar erros de escape e manter consistência
+     * com {@link #fromJson(String)}. Mantemos os nomes dos campos tal como
+     * definidos para compatibilidade com testes e outros componentes.
+     */
     public String toJson() {
-        return String.format(
-                "{\"type\":\"%s\",\"from\":\"%s\",\"to\":\"%s\",\"payload\":\"%s\",\"signature\":\"%s\",\"timestamp\":%d}",
-                type, from, to, payload, signature, timestamp
-        );
+        Gson gson = new Gson();
+        return gson.toJson(this);
     }
 
     public static Message fromJson(String json) {

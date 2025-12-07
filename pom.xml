@@ -90,7 +90,6 @@
                 <version>3.3.1</version>
                 <configuration>
                     <configLocation>checkstyle.xml</configLocation>
-                    <encoding>UTF-8</encoding>
                     <consoleOutput>true</consoleOutput>
                     <failsOnError>true</failsOnError>
                     <linkXRef>false</linkXRef>
@@ -125,6 +124,33 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+
+            <!-- SpotBugs para análise estática -->
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>4.8.6.0</version>
+                <configuration>
+                    <effort>Max</effort>
+                    <threshold>Low</threshold>
+                    <failOnError>false</failOnError>
+                    <xmlOutput>true</xmlOutput>
+                    <includeTests>true</includeTests>
+                </configuration>
+            </plugin>
+
+            <!-- OWASP Dependency-Check para scanner de vulnerabilidades de dependências -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>9.2.0</version>
+                <configuration>
+                    <format>HTML</format>
+                    <formats>HTML,XML,SARIF</formats>
+                    <failBuildOnCVSS>9</failBuildOnCVSS>
+                    <skip>false</skip>
+                </configuration>
             </plugin>
         </plugins>
     </build>
