@@ -30,7 +30,6 @@ public class CryptoUtilsTest {
         String signature = CryptoUtils.sign(identity.getPrivateKey(), payload);
         Message msg = new Message("chat", identity.getPublicKeyBase64(), "recipient", payload, signature);
 
-        assertNotNull(msg.getTimestamp());
         assertTrue(msg.getTimestamp() > 0);
         assertEquals("chat", msg.getType());
         assertEquals(payload, msg.getPayload());
@@ -52,5 +51,39 @@ public class CryptoUtilsTest {
                 deserialized.getSignature()
         );
         assertTrue(verified);
+    }
+
+    @Test
+    void testVerifyWithInvalidInputs() {
+        PeerIdentity identity = CryptoUtils.generateEd25519KeyPair();
+        String msg = "abc";
+        String sig = CryptoUtils.sign(identity.getPrivateKey(), msg);
+
+        // nulls e vazios
+        assertFalse(CryptoUtils.verify(null, msg, sig));
+        assertFalse(CryptoUtils.verify(new byte[0], msg, sig));
+        assertFalse(CryptoUtils.verify(identity.getPublicKey(), null, sig));
+        assertFalse(CryptoUtils.verify(identity.getPublicKey(), msg, null));
+        assertFalse(CryptoUtils.verify(identity.getPublicKey(), msg, ""));
+
+        // assinatura base64 inválida
+        assertFalse(CryptoUtils.verify(identity.getPublicKey(), msg, "###invalido###"));
+
+        // chave pública inválida (bytes aleatórios)
+        byte[] badPub = new byte[16];
+        assertFalse(CryptoUtils.verify(badPub, msg, sig));
+    }
+
+    @Test
+    void testSignWithInvalidInputs() {
+        PeerIdentity identity = CryptoUtils.generateEd25519KeyPair();
+
+        // nulls
+        assertThrows(IllegalArgumentException.class, () -> CryptoUtils.sign(null, "data"));
+        assertThrows(IllegalArgumentException.class, () -> CryptoUtils.sign(identity.getPrivateKey(), null));
+
+        // chave privada inválida (bytes aleatórios)
+        byte[] badPriv = new byte[16];
+        assertThrows(IllegalArgumentException.class, () -> CryptoUtils.sign(badPriv, "data"));
     }
 }

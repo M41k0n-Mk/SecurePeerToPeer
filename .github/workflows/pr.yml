@@ -1,12 +1,12 @@
-name: CI
+name: PR Checks
 
 on:
-  push:
+  pull_request:
     branches: [ main, develop ]
 
 jobs:
-  build-test-and-scan:
-    name: Build & Test (JDK ${{ matrix.java }})
+  test-and-scan:
+    name: PR Build & Test (JDK ${{ matrix.java }})
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -43,17 +43,7 @@ jobs:
         run: mvn -B spotbugs:spotbugs spotbugs:check || true
 
       - name: Security scan (OWASP Dependency-Check)
-        run: mvn -B org.owasp:dependency-check-maven:aggregate -Dformat=HTML -Dformats=HTML,XML,SARIF || true
-
-      - name: Upload reports
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: reports-jdk${{ matrix.java }}
-          path: |
-            target/site/**
-            target/dependency-check-report.*
-            target/spotbugsXml.xml
+        run: mvn -B org.owasp:dependency-check-maven:aggregate -Dformat=HTML -Dformats=HTML,XML,SARIF -DoutputDirectory=target || true
 
       - name: Check SARIF exists
         id: sarifcheck
@@ -71,9 +61,13 @@ jobs:
         with:
           sarif_file: target/dependency-check-report.sarif
 
-      - name: Upload JAR artifact
+      - name: Upload reports
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: jars-jdk${{ matrix.java }}
-          path: target/*.jar
-          retention-days: 14
+          name: pr-reports-jdk${{ matrix.java }}
+          path: |
+            target/site/**
+            target/dependency-check-report.*
+            target/spotbugsXml.xml
+            target/spotbugsHtml.html
