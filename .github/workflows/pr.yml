@@ -8,6 +8,9 @@ jobs:
   test-and-scan:
     name: PR Build & Test (JDK ${{ matrix.java }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     strategy:
       matrix:
         java: [ '17', '21' ]
@@ -30,11 +33,8 @@ jobs:
           key: owasp-nvd-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
           restore-keys: owasp-nvd-${{ runner.os }}-
 
-      - name: Build & Unit tests
-        run: mvn -B -e clean test
-
-      - name: Integration tests (Failsafe verify)
-        run: mvn -B -e verify
+      - name: Build, unit and integration tests
+        run: mvn -B -e clean verify
 
       - name: Lint (Checkstyle)
         run: mvn -B checkstyle:check
@@ -43,11 +43,21 @@ jobs:
         run: mvn -B spotbugs:spotbugs spotbugs:check || true
 
       - name: Security scan (OWASP Dependency-Check)
-        run: mvn -B org.owasp:dependency-check-maven:aggregate -Dformat=HTML -Dformats=HTML,XML,SARIF || true
+        run: mvn -B org.owasp:dependency-check-maven:aggregate -Dformat=HTML -Dformats=HTML,XML,SARIF -DoutputDirectory=target || true
+
+      - name: Check SARIF exists
+        id: sarifcheck
+        if: always()
+        run: |
+          if [ -f target/dependency-check-report.sarif ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Upload SARIF (OWASP)
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: ${{ steps.sarifcheck.outputs.exists == 'true' }}
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: target/dependency-check-report.sarif
 
