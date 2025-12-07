@@ -108,37 +108,49 @@ public class P2PConnector {
             long backoffMs = 1000;
             System.out.println("[P2P] Tentando conectar ativamente ao peer em " + peerIpFinal + ":" + peerPort + " ...");
             while (!done.get()) {
-                try (Socket socket = new Socket()) {
+                Socket socket = null;
+                SecureSession session = null;
+                try {
+                    socket = new Socket();
                     socket.connect(new InetSocketAddress(peerIpFinal, peerPort), 2000);
-                    if (done.get()) { try { socket.close(); } catch (IOException ignored) {} break; }
-                    SecureSession session = new SecureSession(new TcpSocketAdapter(socket), myIdentity, peerStaticPubB64, true);
+                    if (done.get()) {
+                        // se outro caminho já venceu, garante fechar o socket que criamos e sair
+                        try { if (socket != null) socket.close(); } catch (IOException ignored) {}
+                        break;
+                    }
+
+                    session = new SecureSession(new TcpSocketAdapter(socket), myIdentity, peerStaticPubB64, true);
                     try {
                         session.startHandshake();
                         if (done.compareAndSet(false, true)) {
+                            // vencemos a corrida: não fechamos o socket aqui — a sessão é entregue ao caller
                             winner.complete(session);
-                            break;
+                            break; // sai do loop mantendo a sessão ativa
                         } else {
-                            session.close();
+                            // perdemos a corrida: fechar a sessão que criamos
+                            try { session.close(); } catch (IOException ignored) {}
                             break;
                         }
                     } catch (Exception ex) {
                         System.err.println("[P2P] Handshake falhou no caminho de discagem: " + ex.getMessage());
-                        try { session.close(); } catch (IOException ignored) {}
+                        // continuar com retry
                     }
                 } catch (IOException ce) {
-                    // conexão não estabelecida — retry com backoff
+                    // conexão não estabelecida — fechar socket e retry com backoff
+                    try { if (socket != null) socket.close(); } catch (IOException ignored) {}
                 }
                 try {
                     long jitter = (long) (Math.random() * 250);
                     Thread.sleep(backoffMs + jitter);
-                } catch (InterruptedException ie) { break; }
+                } catch (InterruptedException ie) {
+                    break;
+                }
                 backoffMs = Math.min(backoffMs * 2, 5000);
             }
         }, "p2p-dial");
         dialThread.setDaemon(true);
         dialThread.start();
     }
-
     /**
      * awaitWinner: bloqueia até que uma sessão segura seja definida no CompletableFuture winner
      * (proveniente do listener ou do dialer). Ao sair, sinaliza 'done=true' e fecha o ServerSocket
