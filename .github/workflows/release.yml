@@ -33,16 +33,27 @@ jobs:
             sha256sum "$f" > "$f.sha256"
           done
 
+      # Detecta se as secrets de GPG estão presentes de forma compatível com a expressão language
+      - name: Check GPG secrets presence (optional)
+        id: gpgcheck
+        shell: bash
+        run: |
+          if [[ -n "${{ secrets.GPG_PRIVATE_KEY }}" && -n "${{ secrets.GPG_PASSPHRASE }}" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Import GPG key (optional)
         id: import_gpg
-        if: ${{ secrets.GPG_PRIVATE_KEY != '' && secrets.GPG_PASSPHRASE != '' }}
+        if: ${{ steps.gpgcheck.outputs.enabled == 'true' }}
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Sign artifacts with GPG (optional)
-        if: steps.import_gpg.outputs.fingerprints != ''
+        if: ${{ steps.import_gpg.outputs.fingerprints != '' }}
         run: |
           cd target
           for f in *.jar *.sha256; do
