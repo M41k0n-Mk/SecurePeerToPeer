@@ -84,6 +84,6 @@ public class CryptoUtilsTest {
 
         // chave privada inválida (bytes aleatórios)
         byte[] badPriv = new byte[16];
-        assertThrows(RuntimeException.class, () -> CryptoUtils.sign(badPriv, "data"));
+        assertThrows(IllegalArgumentException.class, () -> CryptoUtils.sign(badPriv, "data"));
     }
 }
