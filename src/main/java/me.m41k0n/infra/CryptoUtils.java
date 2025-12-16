@@ -19,6 +19,15 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
+/**
+ * Utilidades criptográficas de alto nível para Ed25519.
+ *
+ * Regras de exceção:
+ * - Entradas inválidas: IllegalArgumentException
+ * - Provedor/algoritmo indisponível: CryptoProviderUnavailableException
+ * - Falhas inesperadas de operação: CryptoOperationException
+ */
+
 public class CryptoUtils {
 
     static {
@@ -41,7 +50,7 @@ public class CryptoUtils {
                 byte[] priv = kp.getPrivate().getEncoded();
                 return new PeerIdentity(pub, priv);
             } catch (Exception ex) {
-                throw new RuntimeException("Ed25519 not available", ex);
+                throw new CryptoProviderUnavailableException("Ed25519 provider/algorithm not available (JDK and BC)", ex);
             }
         }
     }
@@ -62,16 +71,16 @@ public class CryptoUtils {
             try {
                 return doSign("Ed25519", "BC", privateKeyEncoded, data);
             } catch (NoSuchAlgorithmException e2) {
-                throw new RuntimeException("Ed25519 indisponível em todos os providers (JDK e BC)", e2);
+                throw new CryptoProviderUnavailableException("Ed25519 indisponível em todos os providers (JDK e BC)", e2);
             } catch (InvalidKeySpecException | InvalidKeyException badKey) {
                 throw new IllegalArgumentException("invalid Ed25519 private key", badKey);
             } catch (GeneralSecurityException gse) {
-                throw new RuntimeException("Falha inesperada ao assinar com Ed25519 (BC)", gse);
+                throw new CryptoOperationException("Falha inesperada ao assinar com Ed25519 (BC)", gse);
             }
         } catch (InvalidKeySpecException | InvalidKeyException badKey) {
             throw new IllegalArgumentException("invalid Ed25519 private key", badKey);
         } catch (GeneralSecurityException gse) {
-            throw new RuntimeException("Falha inesperada ao assinar com Ed25519", gse);
+            throw new CryptoOperationException("Falha inesperada ao assinar com Ed25519", gse);
         }
     }
 

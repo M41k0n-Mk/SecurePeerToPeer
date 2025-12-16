@@ -81,7 +81,7 @@ public class SecureSession implements Closeable {
 
             if (initiator) {
                 sendLine(m.toJson());
-                Message other = Message.fromJson(expectLineNonNullLimited());
+                Message other = Message.fromJsonValidated(expectLineNonNullLimited());
                 validateHandshakeMessage(other);
 
                 PublicKey otherEph = decodeX25519FromPayload(other.getPayload());
@@ -90,7 +90,7 @@ public class SecureSession implements Closeable {
                 byte[] info = (sortPair(me.getPublicKeyBase64(), other.getFrom()) + ":chat").getBytes(StandardCharsets.UTF_8);
                 this.aeadKey = Hkdf.hkdfSha256(secret, null, info, 32);
             } else {
-                Message first = Message.fromJson(expectLineNonNullLimited());
+                Message first = Message.fromJsonValidated(expectLineNonNullLimited());
                 validateHandshakeMessage(first);
                 PublicKey otherEph = decodeX25519FromPayload(first.getPayload());
 
@@ -101,9 +101,12 @@ public class SecureSession implements Closeable {
                 byte[] info = (sortPair(first.getFrom(), me.getPublicKeyBase64()) + ":chat").getBytes(StandardCharsets.UTF_8);
                 this.aeadKey = Hkdf.hkdfSha256(secret, null, info, 32);
             }
+        } catch (IllegalArgumentException iae) {
+            System.err.println("[SecureSession] startHandshake FAILED (input inválido): " + iae.getMessage());
+            try { this.close(); } catch (IOException ignore) {}
+            throw iae;
         } catch (Exception e) {
-            System.err.println("[SecureSession] startHandshake FAILED — socket=B" + " : " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("[SecureSession] startHandshake FAILED: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
             // garanta que recursos parcialmente abertos sejam fechados
             try { this.close(); } catch (IOException ignore) {}
             throw e;
@@ -160,8 +163,12 @@ public class SecureSession implements Closeable {
             } catch (EOFException eof) {
                 try { SecureSession.this.close(); } catch (IOException ignore) {}
                 handler.onError(null);
+            } catch (IllegalArgumentException iae) {
+                System.err.println("[SecureSession] receiver: entrada inválida — " + iae.getMessage());
+                try { SecureSession.this.close(); } catch (IOException ignore) {}
+                handler.onError(new IOException("Entrada inválida: " + iae.getMessage(), iae));
             } catch (Exception e) {
-                e.printStackTrace();
+                System.err.println("[SecureSession] receiver: erro inesperado — " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
                 try { SecureSession.this.close(); } catch (IOException ignore) {}
                 handler.onError(e);
             }
@@ -204,12 +211,10 @@ public class SecureSession implements Closeable {
             sendLine(seq + "|" + enc);
         } catch (RuntimeException re) {
             // AeadUtils pode lançar RuntimeException para simplicidade; convertemos para IOException para o caller lidar consistentemente
-            System.err.println("[SecureSession] send() runtime error — " + re.getMessage());
-            re.printStackTrace();
+            System.err.println("[SecureSession] send() runtime error — " + (re.getMessage() == null ? re.getClass().getSimpleName() : re.getMessage()));
             throw new IOException("Erro ao cifrar/enviar (runtime): " + re.getMessage(), re);
         } catch (IOException ioe) {
-            System.err.println("[SecureSession] send() IOException — " + ioe.getMessage());
-            ioe.printStackTrace();
+            System.err.println("[SecureSession] send() IOException — " + (ioe.getMessage() == null ? ioe.getClass().getSimpleName() : ioe.getMessage()));
             throw ioe;
         }
     }
@@ -265,8 +270,8 @@ public class SecureSession implements Closeable {
     public synchronized void close() throws IOException {
         if (closed) return;
         closed = true;
-        // imprime stacktrace para saber quem pediu o close
-        new Exception("[SecureSession] Stacktrace do close()").printStackTrace();
+        // Evita imprimir stacktrace em produção; log simples
+        System.out.println("[SecureSession] close() chamado");
         try {
             if (writer != null) {
                 try { writer.close(); } catch (IOException ex) { System.err.println("[SecureSession] writer.close() erro: " + ex.getMessage()); }
